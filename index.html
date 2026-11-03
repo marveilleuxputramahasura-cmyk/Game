@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Garden Rush</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for Sound Effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        /* Custom animations & button styles */
+        .btn-press {
+            transition: transform 0.05s ease, box-shadow 0.05s ease;
+        }
+        .btn-press:active {
+            transform: translateY(4px);
+            box-shadow: none !important;
+        }
+        @keyframes pulse-grow {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        .animate-grow {
+            animation: pulse-grow 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-800 h-screen w-screen overflow-hidden flex justify-center items-center p-0 m-0">
+
+    <!-- GAME CONTAINER (MAX MOBILE / TABLET FRIENDLY FRAME) -->
+    <div id="game-frame" class="relative w-full h-full max-w-md bg-gradient-to-b from-sky-300 via-sky-200 to-amber-100 flex flex-col justify-between overflow-hidden shadow-2xl border-x border-slate-700">
+
+        <!-- HEADER / SCOREBOARD -->
+        <header class="relative z-20 bg-emerald-800/80 backdrop-blur-md text-white p-3 flex justify-between items-center shadow-md border-b-2 border-emerald-600">
+            <div>
+                <h1 class="text-xl font-black tracking-wider text-amber-300 flex items-center gap-1">
+                    🌻 GARDEN RUSH
+                </h1>
+                <p class="text-[10px] text-emerald-100 font-semibold">Tumbuhkan 3 Sayuran ke 100 cm!</p>
+            </div>
+            <!-- TIMER & WATERING STAGE STATUS -->
+            <div id="phase-badge" class="bg-amber-400 text-amber-950 px-3 py-1.5 rounded-xl font-black text-xs shadow border border-amber-200 flex flex-col items-center min-w-[90px]">
+                <span id="phase-title" class="text-[9px] uppercase tracking-wider text-amber-900">MENYIRAM</span>
+                <span id="phase-timer" class="text-lg leading-none text-emerald-950">7.0s</span>
+            </div>
+        </header>
+
+        <!-- PLANT TARGET HEIGHT OVERLAY (ALWAYS VISIBLE TOP BADGES) -->
+        <div class="relative z-10 grid grid-cols-3 gap-2 px-2 pt-2">
+            <!-- Plant 0 Height -->
+            <div class="bg-white/90 backdrop-blur-sm rounded-xl p-1.5 text-center shadow border border-emerald-200">
+                <span class="text-[10px] font-bold text-slate-600 block">🥦 BROKOLI</span>
+                <span id="height-0" class="text-xs font-black text-emerald-600">0 / 100 cm</span>
+                <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1 overflow-hidden">
+                    <div id="bar-0" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+            <!-- Plant 1 Height -->
+            <div class="bg-white/90 backdrop-blur-sm rounded-xl p-1.5 text-center shadow border border-red-200">
+                <span class="text-[10px] font-bold text-slate-600 block">🍅 TOMAT</span>
+                <span id="height-1" class="text-xs font-black text-red-500">0 / 100 cm</span>
+                <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1 overflow-hidden">
+                    <div id="bar-1" class="bg-red-500 h-full w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+            <!-- Plant 2 Height -->
+            <div class="bg-white/90 backdrop-blur-sm rounded-xl p-1.5 text-center shadow border border-green-200">
+                <span class="text-[10px] font-bold text-slate-600 block">🥬 KUBIS</span>
+                <span id="height-2" class="text-xs font-black text-green-600">0 / 100 cm</span>
+                <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1 overflow-hidden">
+                    <div id="bar-2" class="bg-green-500 h-full w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN SCENERY / GARDEN DISPLAY -->
+        <main class="relative flex-1 w-full flex flex-col justify-end overflow-hidden">
+            
+            <!-- BACKGROUND DECORATIONS (SUN, CLOUDS, HILLS) -->
+            <div class="absolute top-4 left-6 text-amber-400 text-4xl animate-pulse">☀️</div>
+            <div class="absolute top-6 right-8 text-white/80 text-3xl">☁️</div>
+            <div class="absolute top-12 left-1/3 text-white/70 text-2xl">☁️</div>
+            
+            <!-- BACKGROUND HILLS -->
+            <div class="absolute bottom-24 left-0 right-0 h-40 bg-emerald-300 rounded-t-[100%] scale-125 translate-y-6"></div>
+            <div class="absolute bottom-20 left-0 right-0 h-36 bg-emerald-400 rounded-t-[80%] scale-110 translate-y-4"></div>
+
+            <!-- FENCE -->
+            <div class="absolute bottom-24 w-full flex justify-between px-2 text-amber-700/40 text-xl font-bold select-none">
+                <div>🪵</div><div>🪵</div><div>🪵</div><div>🪵</div><div>🪵</div><div>🪵</div>
+            </div>
+
+            <!-- GARDEN SOIL GROUND -->
+            <div class="relative z-10 w-full h-32 bg-gradient-to-b from-amber-800 to-amber-950 border-t-8 border-lime-600 shadow-inner flex justify-around items-end pb-3">
+                
+                <!-- PLANT 0: BROKOLI COL -->
+                <div class="relative flex flex-col items-center justify-end h-full w-1/3">
+                    <!-- Target line 100cm -->
+                    <div class="absolute top-[-90px] border-b-2 border-dashed border-yellow-400/80 w-full text-center">
+                        <span class="text-[9px] bg-yellow-400 text-slate-900 font-bold px-1 rounded">GOAL 100cm</span>
+                    </div>
+                    <!-- Stem & Plant Visual -->
+                    <div id="plant-visual-0" class="transition-all duration-200 flex flex-col items-center origin-bottom" style="height: 20px;">
+                        <div id="leaf-0" class="text-2xl transition-all">🌱</div>
+                        <div class="w-2.5 bg-lime-600 rounded-t flex-1 shadow-sm"></div>
+                    </div>
+                    <!-- Soil Patch -->
+                    <div class="w-16 h-4 bg-amber-900 rounded-full border-t border-amber-700 mt-1 shadow-md"></div>
+                </div>
+
+                <!-- PLANT 1: TOMAT COL -->
+                <div class="relative flex flex-col items-center justify-end h-full w-1/3">
+                    <div class="absolute top-[-90px] border-b-2 border-dashed border-yellow-400/80 w-full text-center">
+                        <span class="text-[9px] bg-yellow-400 text-slate-900 font-bold px-1 rounded">GOAL 100cm</span>
+                    </div>
+                    <div id="plant-visual-1" class="transition-all duration-200 flex flex-col items-center origin-bottom" style="height: 20px;">
+                        <div id="leaf-1" class="text-2xl transition-all">🌱</div>
+                        <div class="w-2.5 bg-lime-600 rounded-t flex-1 shadow-sm"></div>
+                    </div>
+                    <div class="w-16 h-4 bg-amber-900 rounded-full border-t border-amber-700 mt-1 shadow-md"></div>
+                </div>
+
+                <!-- PLANT 2: KUBIS COL -->
+                <div class="relative flex flex-col items-center justify-end h-full w-1/3">
+                    <div class="absolute top-[-90px] border-b-2 border-dashed border-yellow-400/80 w-full text-center">
+                        <span class="text-[9px] bg-yellow-400 text-slate-900 font-bold px-1 rounded">GOAL 100cm</span>
+                    </div>
+                    <div id="plant-visual-2" class="transition-all duration-200 flex flex-col items-center origin-bottom" style="height: 20px;">
+                        <div id="leaf-2" class="text-2xl transition-all">🌱</div>
+                        <div class="w-2.5 bg-lime-600 rounded-t flex-1 shadow-sm"></div>
+                    </div>
+                    <div class="w-16 h-4 bg-amber-900 rounded-full border-t border-amber-700 mt-1 shadow-md"></div>
+                </div>
+
+                <!-- FARMER CHARACTER (MOVABLE FULL-BODY) -->
+                <div id="farmer" class="absolute bottom-4 z-20 transition-all duration-300 flex flex-col items-center pointer-events-none" style="left: 16.66%; transform: translateX(-50%);">
+                    <!-- Water Droplet Splash Effect -->
+                    <div id="water-effect" class="hidden absolute -top-8 text-sky-400 text-2xl animate-bounce">💧✨</div>
+                    
+                    <!-- Farmer Character Model (Head with Custom SVG/HTML Face, Body, Legs) -->
+                    <div class="relative flex flex-col items-center">
+                        <!-- Straw Hat -->
+                        <div class="w-10 h-3 bg-amber-400 rounded-t-full border border-amber-600 shadow"></div>
+                        <div class="w-14 h-1.5 bg-amber-500 rounded-full -mt-0.5 border border-amber-700 z-10"></div>
+                        
+                        <!-- Detailed Custom Face (No Emoji) -->
+                        <div class="relative w-8 h-8 bg-amber-200 rounded-full border-2 border-amber-500 flex flex-col items-center justify-center shadow-inner -mt-1 overflow-hidden">
+                            <!-- Hair / Bangs -->
+                            <div class="absolute top-0 w-full h-2 bg-amber-800 rounded-b-sm"></div>
+                            <!-- Eyes -->
+                            <div class="flex justify-between w-4 mt-2">
+                                <div class="w-1 h-1.5 bg-slate-900 rounded-full"></div>
+                                <div class="w-1 h-1.5 bg-slate-900 rounded-full"></div>
+                            </div>
+                            <!-- Nose -->
+                            <div class="w-1 h-1 bg-amber-400 rounded-full -mt-0.5"></div>
+                            <!-- Smile -->
+                            <div class="w-2.5 h-1 border-b-2 border-amber-900 rounded-full -mt-0.5"></div>
+                            <!-- Cheeks -->
+                            <div class="absolute top-4 left-1 w-1.5 h-1 bg-red-300 rounded-full opacity-60"></div>
+                            <div class="absolute top-4 right-1 w-1.5 h-1 bg-red-300 rounded-full opacity-60"></div>
+                        </div>
+                        
+                        <!-- Body (Blue Overalls & Arm holding Watering Can) -->
+                        <div class="relative w-8 h-8 bg-blue-600 rounded-t-lg border border-blue-800 flex justify-center items-center">
+                            <!-- Shirt sleeves -->
+                            <div class="absolute -left-2 top-1 w-2.5 h-3 bg-red-500 rounded"></div>
+                            <div class="absolute -right-2 top-1 w-2.5 h-3 bg-red-500 rounded flex items-center justify-center">
+                                <span class="text-[10px] pl-1">🚿</span>
+                            </div>
+                            <!-- Overall Straps -->
+                            <div class="w-1 h-full bg-blue-800 mx-1"></div>
+                            <div class="w-1 h-full bg-blue-800 mx-1"></div>
+                        </div>
+                        
+                        <!-- Legs & Boots -->
+                        <div class="flex gap-1 -mt-0.5">
+                            <div class="w-3 h-4 bg-amber-900 rounded-b border border-amber-950 flex flex-col justify-end items-center">
+                                <div class="w-3.5 h-1.5 bg-stone-900 rounded-sm"></div>
+                            </div>
+                            <div class="w-3 h-4 bg-amber-900 rounded-b border border-amber-950 flex flex-col justify-end items-center">
+                                <div class="w-3.5 h-1.5 bg-stone-900 rounded-sm"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Indicator Arrow -->
+                    <div class="text-amber-300 text-xs font-black animate-bounce mt-1">▼</div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- GAME CONTROLS PANEL -->
+        <footer class="relative z-20 bg-slate-800/90 backdrop-blur-md border-t-4 border-slate-700 p-3 sm:p-4 flex justify-between items-center gap-4">
+            
+            <!-- LEFT CONSOLE: NAVIGATION (< >) -->
+            <div class="flex gap-2">
+                <button id="btn-left" class="btn-press bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-amber-950 font-black text-2xl w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-b-4 border-amber-700 shadow-lg flex items-center justify-center">
+                    ◀
+                </button>
+                <button id="btn-right" class="btn-press bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-amber-950 font-black text-2xl w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-b-4 border-amber-700 shadow-lg flex items-center justify-center">
+                    ▶
+                </button>
+            </div>
+
+            <!-- WATERING HINT / CLICKS COUNTER -->
+            <div class="text-center flex-1">
+                <span class="text-[10px] font-bold text-slate-400 block tracking-wider uppercase">Tekan Siram (4x = +5cm)</span>
+                <span id="clicks-indicator" class="text-xs font-extrabold text-amber-400 bg-slate-900/80 px-2 py-1 rounded-lg inline-block border border-slate-700 mt-1">
+                    Siraman: 0/4
+                </span>
+            </div>
+
+            <!-- RIGHT CONSOLE: WATER BUTTON -->
+            <div>
+                <button id="btn-water" class="btn-press bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-white font-black text-base sm:text-lg w-20 h-14 sm:w-24 sm:h-16 rounded-2xl border-b-4 border-sky-700 shadow-lg flex flex-col items-center justify-center">
+                    <span class="text-xl leading-none">💧</span>
+                    <span class="text-[11px] font-black uppercase tracking-wider">SIRAM</span>
+                </button>
+            </div>
+        </footer>
+
+        <!-- MODAL 1: OVERLAY START & HOW TO PLAY -->
+        <div id="start-modal" class="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 border-4 border-emerald-600 shadow-2xl flex flex-col gap-3 text-center my-auto relative z-[101]">
+                <div class="text-3xl sm:text-4xl">🌻🌱🥦🍅🥬🌿</div>
+                <h1 class="text-2xl sm:text-3xl font-black text-emerald-700 leading-tight">GARDEN RUSH<br><span class="text-amber-500">MISI 100 CM KEBUN</span></h1>
+                
+                <div class="bg-amber-50 rounded-2xl p-3 sm:p-4 border border-amber-200 text-left text-xs sm:text-sm space-y-1.5 max-h-[35vh] overflow-y-auto">
+                    <h2 class="font-bold text-amber-800 text-sm sm:text-base border-b border-amber-300 pb-1">Cara Bermain:</h2>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-700">
+                        <li>Gunakan <b>Tombol Konsol Kiri (&lt; &gt;)</b> untuk berpindah antar 3 tanaman (Brokoli, Tomat, Kubis).</li>
+                        <li>Tekan <b>Tombol Siram</b> berulang kali. Setiap <b>4x siraman</b>, tanaman tumbuh <b>5 cm</b>.</li>
+                        <li>Setiap <b>7 detik menyiram</b>, kamu wajib menjawab <b>Kuis Sayuran (Durasi 8 detik)</b>!</li>
+                        <li>Jika gagal menjawab atau waktu kuis habis, <b>Game Over!</b></li>
+                        <li><b>Syarat Menang:</b> Ketiga tanaman (Brokoli, Tomat, dan Kubis) wajib mencapai target <b>100 cm!</b></li>
+                    </ul>
+                </div>
+
+                <button type="button" id="btn-start-game" class="btn-press cursor-pointer w-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white font-black text-xl sm:text-2xl py-3.5 sm:py-4 rounded-2xl border-b-4 border-emerald-700 shadow-xl transition-all mt-1 relative z-[102]">
+                    MULAI BERMAIN!
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL 2: QUIZ OVERLAY -->
+        <div id="quiz-modal" class="hidden absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl max-w-sm w-full p-5 border-4 border-amber-500 shadow-2xl flex flex-col gap-3 text-center">
+                
+                <div class="flex justify-between items-center border-b pb-2 border-slate-200">
+                    <span class="text-xs font-black uppercase text-amber-600 tracking-wider">🧠 KUIS EDUSAYUR</span>
+                    <span id="quiz-timer-badge" class="bg-red-500 text-white text-xs font-black px-2.5 py-1 rounded-full animate-pulse">
+                        ⏱️ 8.0s
+                    </span>
+                </div>
+
+                <p id="quiz-question" class="text-sm sm:text-base font-bold text-slate-800 leading-snug py-2 min-h-[60px] flex items-center justify-center">
+                    Pertanyaan Kuis Akan Muncul Di Sini...
+                </p>
+
+                <!-- QUIZ OPTIONS (SAFELY SEPARATED FROM WATER BUTTON) -->
+                <div id="quiz-options" class="flex flex-col gap-2">
+                    <!-- Option Buttons will be rendered here dynamically -->
+                </div>
+
+                <!-- FEEDBACK MESSAGE -->
+                <div id="quiz-feedback" class="hidden text-xs font-black p-2 rounded-xl border"></div>
+            </div>
+        </div>
+
+        <!-- MODAL 3: GAME OVER / VICTORY OVERLAY -->
+        <div id="end-modal" class="hidden absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl max-w-sm w-full p-6 border-4 shadow-2xl flex flex-col items-center text-center gap-4" id="end-card">
+                <div id="end-icon" class="text-6xl">🏆</div>
+                <div>
+                    <h2 id="end-title" class="text-2xl font-black text-slate-800">GAME OVER</h2>
+                    <p id="end-desc" class="text-xs font-semibold text-slate-600 mt-1">Alasan game selesai...</p>
+                </div>
+                
+                <div class="bg-slate-100 rounded-2xl p-3 w-full text-xs font-bold text-slate-700 space-y-1">
+                    <div>Brokoli: <span id="final-h0" class="text-emerald-600">0 cm</span></div>
+                    <div>Tomat: <span id="final-h1" class="text-red-500">0 cm</span></div>
+                    <div>Kubis: <span id="final-h2" class="text-green-600">0 cm</span></div>
+                </div>
+
+                <button id="btn-restart" class="btn-press w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black text-lg py-3 rounded-2xl border-b-4 border-emerald-700 shadow-lg">
+                    MAIN LAGI 🔄
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT GAME LOGIC -->
+    <script>
+        // --- 1. QUIZ QUESTION BANK (20+ Challenging Questions based on Curriculum) ---
+        const quizQuestions = [
+            {
+                q: "Brokoli dan kembang kol dimanfaatkan bagian bunganya. Termasuk kelompok apakah tanaman ini?",
+                options: ["A. Sayuran Daun", "B. Sayuran Bunga", "C. Sayuran Buah", "D. Sayuran Batang"],
+                answer: 1
+            },
+            {
+                q: "Tomat sering disangka buah segar, namun dalam klasifikasi morfologi sayuran, tomat tergolong:",
+                options: ["A. Sayuran Bunga", "B. Sayuran Buah", "C. Sayuran Umbi", "D. Sayuran Daun"],
+                answer: 1
+            },
+            {
+                q: "Bagian tumbuhan asparagus dan seledri yang sering dikonsumsi merupakan klasifikasi sayuran:",
+                options: ["A. Batang", "B. Akar", "C. Biji", "D. Daun"],
+                answer: 0
+            },
+            {
+                q: "Wortel dan lobak menyimpan cadangan makanan di dalam tanah. Keduanya masuk klasifikasi:",
+                options: ["A. Sayuran Polong", "B. Sayuran Akar / Umbi", "C. Sayuran Batang", "D. Sayuran Daun"],
+                answer: 1
+            },
+            {
+                q: "Manakah di bawah ini yang tergolong dalam kelompok Sayuran Biji / Polong?",
+                options: ["A. Kentang & Lobak", "B. Buncis & Kacang Panjang", "C. Asparagus & Pakcoy", "D. Bayam & Selada"],
+                answer: 1
+            },
+            {
+                q: "Sawi, kangkung, dan bayam kaya akan serat dan zat besi. Morfologinya dikelompokkan sebagai:",
+                options: ["A. Sayuran Daun", "B. Sayuran Bunga", "C. Sayuran Batang", "D. Sayuran Buah"],
+                answer: 0
+            },
+            {
+                q: "Kandungan serat pada sayuran hijau memiliki manfaat utama untuk kesehatan tubuh, yaitu:",
+                options: ["A. Mempercepat detak jantung", "B. Melancarkan pencernaan & gula darah", "C. Menggantikan fungsi sel darah merah", "D. Meningkatkan kadar lemak"],
+                answer: 1
+            },
+            {
+                q: "Menurut pedoman kesehatan dunia (WHO), berapa anjuran konsumsi buah dan sayur per hari?",
+                options: ["A. Minimal 100 gram", "B. Minimal 250 gram", "C. Minimal 400 gram", "D. Minimal 800 gram"],
+                answer: 2
+            },
+            {
+                q: "Sayuran berwarna ungu atau merah kaya akan zat aktif pencegah kerusakan sel tubuh yang disebut:",
+                options: ["A. Antioksidan", "B. Karbohidrat kompleks", "C. Glukosa", "D. Protein hewani"],
+                answer: 0
+            },
+            {
+                q: "Manakah pasangan tanaman dan bagian morfologi yang BENAR berikut ini?",
+                options: ["A. Rebung - Sayuran Bunga", "B. Terong - Sayuran Buah", "C. Singkong - Sayuran Biji", "D. Kembang Kol - Sayuran Daun"],
+                answer: 1
+            },
+            {
+                q: "Vitamin yang paling dominan ditemukan pada wortel untuk menjaga kesehatan mata adalah:",
+                options: ["A. Vitamin K", "B. Vitamin C", "C. Vitamin A", "D. Vitamin D"],
+                answer: 2
+            },
+            {
+                q: "Mengapa mengonsumsi sayuran dapat membantu mengontrol berat badan secara alami?",
+                options: ["A. Karena tinggi kalori dan lemak", "B. Rendah kalori tetapi mengenyangkan", "C. Menghilangkan cairan tubuh", "D. Mengandung minyak nabati tinggi"],
+                answer: 1
+            },
+            {
+                q: "Pakcoy dan rebung dikategorikan ke dalam bagian sayuran yang dimanfaatkan berupa:",
+                options: ["A. Sayuran Bunga", "B. Sayuran Batang", "C. Sayuran Akar", "D. Sayuran Buah"],
+                answer: 1
+            },
+            {
+                q: "Sayuran polong seperti kacang kapri dan buncis sangat bagus sebagai sumber utama:",
+                options: ["A. Protein Nabati & Serat", "B. Lemak Jenuh", "C. Vitamin D murni", "D. Kolesterol baik"],
+                answer: 0
+            },
+            {
+                q: "Manfaat utama rutin mengonsumsi sayuran untuk sistem kardiovaskular adalah:",
+                options: ["A. Menurunkan risiko penyakit jantung", "B. Meningkatkan tekanan darah tinggi", "C. Mengurangi pembentukan sel tulang", "D. Memperlambat penyerapan air"],
+                answer: 0
+            },
+            {
+                q: "Zat besi yang banyak terkandung dalam daun singkong dan bayam berfungsi untuk:",
+                options: ["A. Mencegah anemia (kurang darah)", "B. Memutihkan gigi", "C. Mempercepat tumbuh uban", "D. Mengikis jaringan otot"],
+                answer: 0
+            },
+            {
+                q: "Kentang dan ubi jalar yang dikonsumsi bagian umbinya kaya akan nutrisi penghasil energi yaitu:",
+                options: ["A. Lemak trans", "B. Karbohidrat", "C. Vitamin E murni", "D. Kalsium sintetis"],
+                answer: 1
+            },
+            {
+                q: "Di bawah ini yang termasuk jenis sayuran buah dengan rasa menyegarkan adalah:",
+                options: ["A. Mentimun & Labu Siam", "B. Asparagus & Seledri", "C. Brokoli & Kembang Kol", "D. Singkong & Lobak"],
+                answer: 0
+            },
+            {
+                q: "Kandungan Vitamin C yang melimpah pada sayuran hijau dan buah berguna untuk:",
+                options: ["A. Memperkuat sistem imun tubuh", "B. Merusak sel radikal bebas", "C. Menurunkan stamina", "D. Mengurangi pencernaan"],
+                answer: 0
+            },
+            {
+                q: "Bayam dan selada termasuk sayuran daun yang kaya akan mineral penting untuk pembekuan darah, yaitu:",
+                options: ["A. Vitamin K", "B. Vitamin B12", "C. Vitamin D3", "D. Glukosa"],
+                answer: 0
+            }
+        ];
+
+        // --- 2. GAME STATE VARIABLES ---
+        let plants = [
+            { name: "Brokoli", height: 0, clicks: 0, visualId: "plant-visual-0", heightId: "height-0", barId: "bar-0", leafId: "leaf-0" },
+            { name: "Tomat", height: 0, clicks: 0, visualId: "plant-visual-1", heightId: "height-1", barId: "bar-1", leafId: "leaf-1" },
+            { name: "Kubis", height: 0, clicks: 0, visualId: "plant-visual-2", heightId: "height-2", barId: "bar-2", leafId: "leaf-2" }
+        ];
+
+        let farmerPos = 0; // 0: Brokoli, 1: Tomat, 2: Kubis
+        let gameState = "START"; // START, WATERING, QUIZ, GAMEOVER, VICTORY
+        let waterTimer = 7.0;
+        let quizTimer = 8.0;
+        let mainInterval = null;
+        let currentQuiz = null;
+
+        // Quiz tracking to prevent repeating questions
+        let availableQuizIndexes = [];
+
+        function resetQuizPool() {
+            // Fill pool with indexes 0 to length-1 and shuffle
+            availableQuizIndexes = Array.from({ length: quizQuestions.length }, (_, i) => i);
+            // Fisher-Yates Shuffle
+            for (let i = availableQuizIndexes.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [availableQuizIndexes[i], availableQuizIndexes[j]] = [availableQuizIndexes[j], availableQuizIndexes[i]];
+            }
+        }
+
+        // --- 3. SOUND EFFECTS SYNTHESIZER (TONE.JS) ---
+        let waterSynth, correctSynth, wrongSynth, winSynth;
+
+        function initAudio() {
+            try {
+                waterSynth = new Tone.Synth({
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 }
+                }).toDestination();
+
+                correctSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+                wrongSynth = new Tone.MembraneSynth().toDestination();
+                winSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+            } catch (e) {
+                console.log("Audio synth error or muted:", e);
+            }
+        }
+
+        function playSound(type) {
+            try {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                if (type === 'water') {
+                    waterSynth.triggerAttackRelease("C5", "8n");
+                } else if (type === 'correct') {
+                    correctSynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n");
+                } else if (type === 'wrong') {
+                    wrongSynth.triggerAttackRelease("G1", "4n");
+                } else if (type === 'win') {
+                    winSynth.triggerAttackRelease(["C4", "E4", "G4", "B4", "C5"], "4n");
+                }
+            } catch (e) {}
+        }
+
+        // --- 4. FARMER MOVEMENT & RENDERING ---
+        function moveFarmer(direction) {
+            if (gameState !== "WATERING") return;
+            
+            if (direction === 'left' && farmerPos > 0) {
+                farmerPos--;
+            } else if (direction === 'right' && farmerPos < 2) {
+                farmerPos++;
+            }
+            updateFarmerPosition();
+        }
+
+        function updateFarmerPosition() {
+            const farmerEl = document.getElementById("farmer");
+            const posPercent = [16.66, 50.00, 83.33];
+            farmerEl.style.left = `${posPercent[farmerPos]}%`;
+        }
+
+        // --- 5. WATERING MECHANICS ---
+        function waterCurrentPlant() {
+            if (gameState !== "WATERING") return;
+
+            playSound('water');
+            
+            // Show Water Droplet Effect
+            const waterFx = document.getElementById("water-effect");
+            waterFx.classList.remove("hidden");
+            setTimeout(() => waterFx.classList.add("hidden"), 300);
+
+            let plant = plants[farmerPos];
+            plant.clicks++;
+
+            // Every 4 clicks = Grow 5 cm
+            if (plant.clicks >= 4) {
+                plant.clicks = 0;
+                plant.height = Math.min(100, plant.height + 5);
+                
+                // Animate plant growing
+                const plantVis = document.getElementById(plant.visualId);
+                plantVis.classList.add("animate-grow");
+                setTimeout(() => plantVis.classList.remove("animate-grow"), 300);
+            }
+
+            updateUI();
+            checkVictoryCondition();
+        }
+
+        // --- 6. UI UPDATE FUNCTION ---
+        function updateUI() {
+            // Update Plant Visuals, Heights & Progress Bars
+            plants.forEach((plant, index) => {
+                // Height text & bar
+                document.getElementById(plant.heightId).innerText = `${plant.height} / 100 cm`;
+                const percent = (plant.height / 100) * 100;
+                document.getElementById(plant.barId).style.width = `${percent}%`;
+
+                // Stem Height (Range from 20px up to 110px)
+                const plantVis = document.getElementById(plant.visualId);
+                const computedHeight = 20 + (plant.height / 100) * 90;
+                plantVis.style.height = `${computedHeight}px`;
+
+                // Leaf Icon evolution based on growth stage
+                const leafEl = document.getElementById(plant.leafId);
+                if (plant.height < 30) {
+                    leafEl.innerText = "🌱";
+                } else if (plant.height < 70) {
+                    leafEl.innerText = "🌿";
+                } else {
+                    // Fully grown icons
+                    if (index === 0) leafEl.innerText = "🥦";
+                    if (index === 1) leafEl.innerText = "🍅";
+                    if (index === 2) leafEl.innerText = "🥬";
+                }
+            });
+
+            // Update Click Indicator for current farmer position
+            const currentPlant = plants[farmerPos];
+            document.getElementById("clicks-indicator").innerText = `Siraman ${currentPlant.name}: ${currentPlant.clicks}/4`;
+        }
+
+        // --- 7. GAME LOOP & TIMER MANAGEMENT ---
+        function startWateringPhase() {
+            gameState = "WATERING";
+            waterTimer = 7.0;
+            
+            document.getElementById("quiz-modal").classList.add("hidden");
+            document.getElementById("phase-title").innerText = "MENYIRAM";
+            document.getElementById("phase-badge").className = "bg-amber-400 text-amber-950 px-3 py-1.5 rounded-xl font-black text-xs shadow border border-amber-200 flex flex-col items-center min-w-[90px]";
+
+            clearInterval(mainInterval);
+            mainInterval = setInterval(() => {
+                waterTimer -= 0.1;
+                if (waterTimer <= 0) {
+                    waterTimer = 0;
+                    clearInterval(mainInterval);
+                    startQuizPhase();
+                }
+                document.getElementById("phase-timer").innerText = `${waterTimer.toFixed(1)}s`;
+            }, 100);
+        }
+
+        function startQuizPhase() {
+            gameState = "QUIZ";
+            quizTimer = 8.0;
+
+            document.getElementById("phase-title").innerText = "KUIS SAYUR";
+            document.getElementById("phase-badge").className = "bg-red-500 text-white px-3 py-1.5 rounded-xl font-black text-xs shadow border border-red-300 flex flex-col items-center min-w-[90px]";
+            
+            // Pick next unique quiz question without repetition
+            if (availableQuizIndexes.length === 0) {
+                resetQuizPool(); // Reset if all 20+ questions have been asked
+            }
+            const quizIndex = availableQuizIndexes.pop();
+            currentQuiz = quizQuestions[quizIndex];
+
+            // Render Quiz UI
+            document.getElementById("quiz-question").innerText = currentQuiz.q;
+            const optionsContainer = document.getElementById("quiz-options");
+            optionsContainer.innerHTML = "";
+
+            const feedback = document.getElementById("quiz-feedback");
+            feedback.classList.add("hidden");
+
+            currentQuiz.options.forEach((optText, optIdx) => {
+                const btn = document.createElement("button");
+                btn.className = "btn-press bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-950 text-xs sm:text-sm font-bold p-2.5 sm:py-3 rounded-xl border border-amber-300 text-left transition-all";
+                btn.innerText = optText;
+                btn.onclick = () => answerQuiz(optIdx);
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById("quiz-modal").classList.remove("hidden");
+
+            // Start Quiz Countdown
+            clearInterval(mainInterval);
+            mainInterval = setInterval(() => {
+                quizTimer -= 0.1;
+                document.getElementById("quiz-timer-badge").innerText = `⏱️ ${quizTimer.toFixed(1)}s`;
+                document.getElementById("phase-timer").innerText = `${quizTimer.toFixed(1)}s`;
+
+                if (quizTimer <= 0) {
+                    clearInterval(mainInterval);
+                    triggerGameOver("Waktu menjawab kuis telah habis! ⏱️");
+                }
+            }, 100);
+        }
+
+        function answerQuiz(selectedIndex) {
+            clearInterval(mainInterval);
+            const feedback = document.getElementById("quiz-feedback");
+            feedback.classList.remove("hidden");
+
+            const optionButtons = document.querySelectorAll("#quiz-options button");
+            optionButtons.forEach(btn => btn.disabled = true);
+
+            if (selectedIndex === currentQuiz.answer) {
+                // Correct Answer
+                playSound('correct');
+                feedback.className = "text-xs font-black p-2 rounded-xl border bg-emerald-100 text-emerald-800 border-emerald-300";
+                feedback.innerText = "BENAR! 🎉 Jawaban kamu tepat sekali!";
+                
+                optionButtons[selectedIndex].classList.remove("bg-amber-100");
+                optionButtons[selectedIndex].classList.add("bg-emerald-500", "text-white");
+
+                setTimeout(() => {
+                    startWateringPhase();
+                }, 1200);
+
+            } else {
+                // Wrong Answer
+                playSound('wrong');
+                feedback.className = "text-xs font-black p-2 rounded-xl border bg-red-100 text-red-800 border-red-300";
+                feedback.innerText = "SALAH! ❌ Jawaban kurang tepat.";
+
+                optionButtons[selectedIndex].classList.remove("bg-amber-100");
+                optionButtons[selectedIndex].classList.add("bg-red-500", "text-white");
+                
+                // Highlight correct one
+                optionButtons[currentQuiz.answer].classList.remove("bg-amber-100");
+                optionButtons[currentQuiz.answer].classList.add("bg-emerald-500", "text-white");
+
+                setTimeout(() => {
+                    triggerGameOver("Jawaban kuis salah! Pelajari lagi nutrisi sayuran ya 🌱");
+                }, 1500);
+            }
+        }
+
+        // --- 8. WIN & GAME OVER CONDITIONS ---
+        function checkVictoryCondition() {
+            // ALL 3 plants must reach 100 cm!
+            const allReached = plants.every(p => p.height >= 100);
+            if (allReached) {
+                clearInterval(mainInterval);
+                gameState = "VICTORY";
+                playSound('win');
+
+                document.getElementById("end-card").className = "bg-white rounded-3xl max-w-sm w-full p-6 border-4 border-emerald-500 shadow-2xl flex flex-col items-center text-center gap-4 animate-bounce";
+                document.getElementById("end-icon").innerText = "🏆🎉";
+                document.getElementById("end-title").innerText = "HEBAT! MISI SUKSES!";
+                document.getElementById("end-title").className = "text-2xl font-black text-emerald-600";
+                document.getElementById("end-desc").innerText = "Selamat! Seluruh tanaman (Brokoli, Tomat, Kubis) berhasil tumbuh hingga 100 cm!";
+                
+                showEndModal();
+            }
+        }
+
+        function triggerGameOver(reason) {
+            gameState = "GAMEOVER";
+            document.getElementById("end-card").className = "bg-white rounded-3xl max-w-sm w-full p-6 border-4 border-red-500 shadow-2xl flex flex-col items-center text-center gap-4";
+            document.getElementById("end-icon").innerText = "🥀";
+            document.getElementById("end-title").innerText = "GAME OVER";
+            document.getElementById("end-title").className = "text-2xl font-black text-red-600";
+            document.getElementById("end-desc").innerText = reason;
+
+            showEndModal();
+        }
+
+        function showEndModal() {
+            document.getElementById("quiz-modal").classList.add("hidden");
+            document.getElementById("final-h0").innerText = `${plants[0].height} cm`;
+            document.getElementById("final-h1").innerText = `${plants[1].height} cm`;
+            document.getElementById("final-h2").innerText = `${plants[2].height} cm`;
+            document.getElementById("end-modal").classList.remove("hidden");
+        }
+
+        function resetGame() {
+            plants.forEach(p => {
+                p.height = 0;
+                p.clicks = 0;
+            });
+            farmerPos = 0;
+            updateFarmerPosition();
+            updateUI();
+            resetQuizPool();
+
+            document.getElementById("end-modal").classList.add("hidden");
+            document.getElementById("start-modal").classList.add("hidden");
+            
+            startWateringPhase();
+        }
+
+        function startGame() {
+            initAudio();
+            document.getElementById("start-modal").classList.add("hidden");
+            resetGame();
+        }
+
+        // --- 9. EVENT LISTENERS ---
+        document.getElementById("btn-left").addEventListener("click", () => moveFarmer('left'));
+        document.getElementById("btn-right").addEventListener("click", () => moveFarmer('right'));
+        document.getElementById("btn-water").addEventListener("click", waterCurrentPlant);
+        
+        // Directly bind start button to ensure robust execution
+        const startBtn = document.getElementById("btn-start-game");
+        if (startBtn) {
+            startBtn.addEventListener("click", startGame);
+            startBtn.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                startGame();
+            });
+        }
+        
+        document.getElementById("btn-restart").addEventListener("click", resetGame);
+
+        // Keyboard Controls support
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowLeft") moveFarmer('left');
+            if (e.key === "ArrowRight") moveFarmer('right');
+            if (e.key === " " || e.key === "Spacebar") waterCurrentPlant();
+        });
+
+        // Initialize UI on Load
+        updateFarmerPosition();
+        updateUI();
+
+    </script>
+</body>
+</html>
